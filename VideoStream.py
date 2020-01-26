@@ -13,14 +13,14 @@ util_ops.tf = tf.compat.v1
 tf.gfile = tf.io.gfile
 
 
-def load_model(model_name):
-    base_url = 'http://download.tensorflow.org/models/object_detection/'
-    model_file = model_name + '.tar.gz'
-    model_dir = tf.keras.utils.get_file(fname=model_name,
-                                        origin=base_url+model_file,
-                                        untar=True)
-
-    model_dir = pathlib.Path(model_dir)/"saved_model"
+def load_model(model_name, model_dir=None):
+    if model_dir == None:
+        base_url = 'http://download.tensorflow.org/models/object_detection/'
+        model_file = model_name + '.tar.gz'
+        model_dir = tf.keras.utils.get_file(fname=model_name,
+                                            origin=base_url+model_file,
+                                            untar=True)
+        model_dir = pathlib.Path(model_dir)/"saved_model"
 
     model = tf.saved_model.load(str(model_dir))
     model = model.signatures['serving_default']
@@ -28,14 +28,16 @@ def load_model(model_name):
     return model
 
 
-PATH_TO_LABELS = 'models/research/object_detection/data/mscoco_label_map.pbtxt'
+# PATH_TO_LABELS = 'models/research/object_detection/data/mscoco_label_map.pbtxt'
+PATH_TO_LABELS = 'models/research/object_detection/data/oid_bbox_trainable_label_map.pbtxt'
 category_index = label_map_util.create_categories_from_labelmap(PATH_TO_LABELS,
                                                                 use_display_name=True)
 category_idx = {i+1: val for i, val in enumerate(category_index)}
 print(category_index)
 COLORS = np.random.randint(0, 255, size=(len(category_index), 3), dtype='uint8')
-model_name = 'ssd_mobilenet_v1_coco_2017_11_17'
-detection_model = load_model(model_name)
+# model_name = 'ssd_mobilenet_v1_coco_2018_01_28'
+model_name = 'faster_rcnn_inception_resnet_v2_atrous_lowproposals_oidv2_2018_01_28'
+detection_model = load_model(model_name, "/home/atharva/.keras/datasets/faster_rcnn_inception_resnet_v2_atrous_lowproposals_oid_2018_01_28/saved_model")
 
 
 def detect(model, image):
@@ -65,6 +67,8 @@ def detect(model, image):
 
     return output_dict
 
+CONFIDENCE = 0.5
+
 
 def show_inference(model, cap):
     while True:
@@ -79,8 +83,9 @@ def show_inference(model, cap):
             category_idx,
             instance_masks=output_dict.get('detection_masks_reframed', None),
             use_normalized_coordinates=True,
-            line_thickness=8)
-        cv2.imshow('object_detection', cv2.resize(image_np, (800, 600)))
+            line_thickness=8,
+            min_score_thresh=0.7)
+        cv2.imshow('object_detection', image_np)
         if cv2.waitKey(25) & 0xFF == ord('q'):
             cap.release()
             cv2.destroyAllWindows()
